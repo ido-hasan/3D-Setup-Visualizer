@@ -15,7 +15,7 @@ export function boardGeometry(spec: BoardSpec): THREE.BufferGeometry {
       g = new THREE.BoxGeometry(s.size[0], s.size[1], s.size[2]);
       if (s.rot) g.rotateZ((s.rot * Math.PI) / 180);
     } else {
-      g = new THREE.CylinderGeometry(s.size[0] / 2, s.size[0] / 2, s.size[2], 24);
+      g = new THREE.CylinderGeometry(s.size[0] / 2, s.size[0] / 2, s.size[2], s.sides ?? 24);
       if ((s.axis ?? 'z') === 'z') g.rotateX(Math.PI / 2);
       else if (s.axis === 'x') g.rotateZ(Math.PI / 2);
     }

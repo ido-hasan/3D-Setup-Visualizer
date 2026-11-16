@@ -48,6 +48,7 @@ export function expandStrip(strip: Strip): Pin[] {
         stripIndex: index,
       };
       if (ov?.voltageLimit) pin.voltageLimit = ov.voltageLimit;
+      if (pin.type === 'RF') pin.connector = strip.connector ?? 'SMA';
       pins.push(pin);
     }
   }

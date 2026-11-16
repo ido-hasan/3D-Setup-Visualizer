@@ -27,18 +27,20 @@ import {
   parsePinJson,
   PIN_GENDERS,
   PIN_TYPES,
+  RF_CONNECTORS,
   setStripCount,
   setStripPitch,
   type Part,
   type Pin,
   type PinGender,
   type PinType,
+  type RfConnector,
   type Strip,
   type StripPinOverride,
   type Vec3,
 } from '@viz/shared';
 import { api, loadAllParts } from '../api';
-import { PIN_COLORS, PIN_TYPE_LABELS } from '../lib/pinColors';
+import { PIN_COLORS, PIN_TYPE_LABELS, RF_CONNECTOR_LABELS } from '../lib/pinColors';
 import { downloadText, newId, safeFileName } from '../lib/util';
 import { PartScene } from '../part/PartScene';
 import { mutatePart, openPart, redoPart, savePartNow, schedulePartSave, setPartTool, undoPart, usePartEditor } from '../part/store';
@@ -59,6 +61,19 @@ const normalIndex = (n: Vec3): number => {
   return i < 0 ? 0 : i;
 };
 const GENDER_LABELS: Record<PinGender, string> = { male: 'Pin (male)', female: 'Socket (female)', hole: 'Hole' };
+const RF_GENDER_LABELS: Record<PinGender, string> = { male: 'Plug (male)', female: 'Jack (female)', hole: 'Hole' };
+
+function ConnectorSelect({ id, value, onChange, disabled }: { id: string; value: RfConnector | undefined; onChange: (c: RfConnector) => void; disabled?: boolean }) {
+  return (
+    <select id={id} className="input" value={value ?? 'SMA'} disabled={disabled} onChange={(e) => onChange(e.target.value as RfConnector)}>
+      {RF_CONNECTORS.map((c) => (
+        <option key={c} value={c}>
+          {RF_CONNECTOR_LABELS[c]}
+        </option>
+      ))}
+    </select>
+  );
+}
 
 function TypeSelect({ value, onChange, disabled, small }: { value: PinType; onChange: (t: PinType) => void; disabled?: boolean; small?: boolean }) {
   return (
@@ -159,24 +174,31 @@ function PinInspector({ pin, readOnly }: { pin: Pin; readOnly: boolean }) {
         </div>
         <div className="field">
           <span className="label">Type</span>
-          <TypeSelect value={pin.type} disabled={readOnly} onChange={(type) => update({ type })} />
+          <TypeSelect value={pin.type} disabled={readOnly} onChange={(type) => update({ type, connector: type === 'RF' ? (pin.connector ?? 'SMA') : undefined })} />
         </div>
       </div>
       <div className="field-row">
         <div className="field">
-          <label htmlFor="pin-gender">Connector</label>
+          <label htmlFor="pin-gender">{pin.type === 'RF' ? 'Plug or jack' : 'Connector'}</label>
           <select id="pin-gender" className="input" value={pin.gender} disabled={readOnly} onChange={(e) => update({ gender: e.target.value as PinGender })}>
             {PIN_GENDERS.filter((g) => g !== 'hole').map((g) => (
               <option key={g} value={g}>
-                {GENDER_LABELS[g]}
+                {(pin.type === 'RF' ? RF_GENDER_LABELS : GENDER_LABELS)[g]}
               </option>
             ))}
           </select>
         </div>
-        <div className="field">
-          <span className="label">Voltage limit</span>
-          <LimitSelect value={pin.voltageLimit} disabled={readOnly} onChange={(voltageLimit) => update({ voltageLimit })} />
-        </div>
+        {pin.type === 'RF' ? (
+          <div className="field">
+            <label htmlFor="pin-connector">RF connector</label>
+            <ConnectorSelect id="pin-connector" value={pin.connector} disabled={readOnly} onChange={(connector) => update({ connector })} />
+          </div>
+        ) : (
+          <div className="field">
+            <span className="label">Voltage limit</span>
+            <LimitSelect value={pin.voltageLimit} disabled={readOnly} onChange={(voltageLimit) => update({ voltageLimit })} />
+          </div>
+        )}
       </div>
       <VecFields idPrefix="pin-pos" value={pin.position} disabled={readOnly} onCommit={(position) => update({ position })} labels={['X (mm)', 'Y (mm)', 'Z (mm)']} />
       <div className="field">
@@ -198,6 +220,7 @@ function StripInspector({ strip, readOnly, selectedIndex }: { strip: Strip; read
   const slots = strip.count * strip.rows;
   const generated = new Map(expandStrip({ ...strip, overrides: Object.fromEntries(Object.entries(strip.overrides).map(([k, v]) => [k, { ...v, deleted: false }])) }).map((p) => [p.stripIndex!, p]));
   const selectedOverride = selectedIndex !== undefined ? strip.overrides[selectedIndex] : undefined;
+  const hasRf = strip.type === 'RF' || Object.values(strip.overrides).some((o) => o.type === 'RF' && !o.deleted);
   return (
     <>
       <div className="side-section">
@@ -272,6 +295,12 @@ function StripInspector({ strip, readOnly, selectedIndex }: { strip: Strip; read
             <TypeSelect value={strip.type} disabled={readOnly} onChange={(type) => updateStrip(strip.id, (s) => ({ ...s, type }))} />
           </div>
         </div>
+        {hasRf && (
+          <div className="field">
+            <label htmlFor="strip-connector">RF connector of this strip's RF ports</label>
+            <ConnectorSelect id="strip-connector" value={strip.connector} disabled={readOnly} onChange={(connector) => updateStrip(strip.id, (s) => ({ ...s, connector }))} />
+          </div>
+        )}
         {!readOnly && (
           <>
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
@@ -403,7 +432,7 @@ function ImportDialog({ onClose }: { onClose: () => void }) {
         Paste a pin list, or choose a .csv or .json file. Positions are in millimetres from the centre of the model's base: X to the right, Y to the back, Z up.
       </p>
       <p className="hint">
-        CSV columns: <code>name, type, x, y, z</code>, and optionally <code>gender</code> (male or female), <code>nx, ny, nz</code> (direction the cable leaves) and <code>limit</code> (3.3 or 5). Types:{' '}
+        CSV columns: <code>name, type, x, y, z</code>, and optionally <code>gender</code> (male or female), <code>nx, ny, nz</code> (direction the cable leaves), <code>limit</code> (3.3 or 5) and <code>connector</code> (SMA, BNC, N or UFL, for RF ports). Types:{' '}
         {PIN_TYPES.join(', ')}. JSON is the format that Export pins writes.
       </p>
       <textarea

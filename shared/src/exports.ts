@@ -1,5 +1,5 @@
 import type { PartsById, SetupDoc } from './types';
-import { cableKind, cableLength, cableTypeLabel, standardJumperLength } from './cable';
+import { cableGeometry, cableKind, cableLength, cableTypeLabel, standardCoaxLength, standardJumperLength } from './cable';
 import { SetupIndex } from './netlist';
 
 export interface WiringRow {
@@ -29,7 +29,7 @@ export function wiringList(doc: SetupDoc, parts: PartsById, index = new SetupInd
       color: cable.color,
       label: cable.label,
       type: a && b ? cableTypeLabel(a.pin, b.pin) : '',
-      lengthMm: a && b ? Math.round(cableLength(a, b, cable.controlPoints)) : null,
+      lengthMm: a && b ? Math.round(cableLength(a, b, cable.controlPoints, cableGeometry(a.pin, b.pin))) : null,
     };
   });
 }
@@ -52,10 +52,14 @@ export function billOfMaterials(doc: SetupDoc, parts: PartsById, index = new Set
     const a = index.resolve(cable.from);
     const b = index.resolve(cable.to);
     if (!a || !b) continue;
+    const kind = cableKind(a.pin, b.pin);
+    const length = cableLength(a, b, cable.controlPoints, cableGeometry(a.pin, b.pin));
     const item =
-      cableKind(a.pin, b.pin) === 'usb'
+      kind === 'usb'
         ? 'USB cable'
-        : `Jumper wire ${cableTypeLabel(a.pin, b.pin)}, ${standardJumperLength(cableLength(a, b, cable.controlPoints))}`;
+        : kind === 'coax'
+          ? `Coax cable ${cableTypeLabel(a.pin, b.pin)}, ${standardCoaxLength(length)}`
+          : `Jumper wire ${cableTypeLabel(a.pin, b.pin)}, ${standardJumperLength(length)}`;
     cables.set(item, (cables.get(item) ?? 0) + 1);
   }
   const sorted = (m: Map<string, number>, kind: BomLine['kind']): BomLine[] =>

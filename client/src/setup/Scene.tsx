@@ -4,7 +4,19 @@ import { useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import { useShallow } from 'zustand/react/shallow';
-import { cableKeyPoints, cableKind, HOUSING_LENGTH, partPins, type BBox, type Pin, type Vec3 } from '@viz/shared';
+import {
+  cableGeometry,
+  cableKeyPoints,
+  COAX_CONNECTORS,
+  coaxEnd,
+  HOUSING_LENGTH,
+  JUMPER_GEOMETRY,
+  partPins,
+  type BBox,
+  type CableKind,
+  type Pin,
+  type Vec3,
+} from '@viz/shared';
 import { BoxOutline, PartModel } from '../three/PartModel';
 import { pinDetail, PinHighlight, PinMarkers } from '../three/PinMarkers';
 import { rayToPlane } from '../three/Stage';
@@ -155,13 +167,36 @@ function basisFor(normal: THREE.Vector3): THREE.Quaternion {
   return new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(x, y, z));
 }
 
-function Plug({ position, normal, usb }: { position: Vec3; normal: Vec3; usb: boolean }) {
-  const length = usb ? 14 : HOUSING_LENGTH;
+// Unit cylinders along Z: round for jack-style ends, six-sided for the coupling nut of a plug.
+const roundBarrel = new THREE.CylinderGeometry(0.5, 0.5, 1, 20).rotateX(Math.PI / 2);
+const hexNut = new THREE.CylinderGeometry(0.5, 0.5, 1, 6).rotateX(Math.PI / 2);
+const METAL = { gold: '#c9a13b', silver: '#c9ccd1' };
+
+/** The connector on one end of a cable: a jumper housing, a USB plug, or a coax connector. */
+function Plug({ pin, position, normal, kind }: { pin: Pin; position: Vec3; normal: Vec3; kind: CableKind }) {
   const n = useMemo(() => new THREE.Vector3(...normal), [normal]);
   const quaternion = useMemo(() => basisFor(n), [n]);
-  const pos = useMemo(() => new THREE.Vector3(...position).addScaledVector(n, length / 2), [position, n, length]);
+  const at = (from: number, length: number) => new THREE.Vector3(...position).addScaledVector(n, from + length / 2);
+
+  if (kind === 'coax') {
+    const end = coaxEnd(pin);
+    // A coax cable on an ordinary pin has no connector to draw. The checks report it.
+    if (!end) return null;
+    const size = COAX_CONNECTORS[end.connector];
+    const male = end.gender === 'male';
+    // A plug slides back over the jack it screws onto. A cable-side jack butts against the plug.
+    const start = male ? -size.overlap : 0;
+    const diameter = male ? size.diameter : size.diameter * 0.78;
+    return (
+      <mesh geometry={male && end.connector !== 'UFL' ? hexNut : roundBarrel} position={at(start, size.length)} quaternion={quaternion} scale={[diameter, diameter, size.length]}>
+        <meshStandardMaterial color={METAL[size.metal]} roughness={0.45} metalness={0.2} />
+      </mesh>
+    );
+  }
+  const usb = kind === 'usb';
+  const length = usb ? 14 : HOUSING_LENGTH;
   return (
-    <mesh geometry={unitBox} position={pos} quaternion={quaternion} scale={usb ? [12, 4.6, length] : [2.4, 2.4, length]}>
+    <mesh geometry={unitBox} position={at(0, length)} quaternion={quaternion} scale={usb ? [12, 4.6, length] : [2.4, 2.4, length]}>
       <meshStandardMaterial color={usb ? '#d5d8dd' : '#1e1e21'} roughness={0.6} />
     </mesh>
   );
@@ -243,7 +278,7 @@ function CableView({ id }: { id: string }) {
   const a = cable ? analysis.index.resolve(cable.from) : undefined;
   const b = cable ? analysis.index.resolve(cable.to) : undefined;
   const dangling = !a || !b;
-  const usb = !dangling && cableKind(a.pin, b.pin) === 'usb';
+  const geo = dangling ? JUMPER_GEOMETRY : cableGeometry(a.pin, b.pin);
 
   // A lost end is drawn hovering over its board, or over the bench when the board is gone too.
   const fallback = (ref: { instanceId: string } | undefined, other: Vec3 | undefined): { position: Vec3; normal: Vec3 } => {
@@ -254,22 +289,22 @@ function CableView({ id }: { id: string }) {
   const endA = a ?? fallback(cable?.from, b?.position);
   const endB = b ?? fallback(cable?.to, a?.position);
   const controlPoints = cable?.controlPoints ?? [];
-  const key = JSON.stringify([endA.position, endA.normal, endB.position, endB.normal, controlPoints, usb]);
+  const key = JSON.stringify([endA.position, endA.normal, endB.position, endB.normal, controlPoints, geo]);
 
   const { curve, tube, pickTube, glowTube, points } = useMemo(() => {
-    const pts = cableKeyPoints(endA, endB, controlPoints, usb ? 14 : HOUSING_LENGTH);
+    const pts = cableKeyPoints(endA, endB, controlPoints, geo);
     const c = new THREE.CatmullRomCurve3(
       pts.map((p) => new THREE.Vector3(...p)),
       false,
       'centripetal',
     );
     const segments = Math.max(40, pts.length * 14);
-    const r = usb ? 1.7 : 0.65;
+    const r = geo.radius;
     return {
       points: pts,
       curve: c,
       tube: new THREE.TubeGeometry(c, segments, r, 8),
-      pickTube: new THREE.TubeGeometry(c, Math.round(segments / 2), 2.6, 5),
+      pickTube: new THREE.TubeGeometry(c, Math.round(segments / 2), Math.max(2.6, r + 1.6), 5),
       glowTube: new THREE.TubeGeometry(c, segments, r + 1, 8),
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -319,8 +354,8 @@ function CableView({ id }: { id: string }) {
           }}
         />
       )}
-      {a && <Plug position={a.position} normal={a.normal} usb={usb} />}
-      {b && <Plug position={b.position} normal={b.normal} usb={usb} />}
+      {a && <Plug pin={a.pin} position={a.position} normal={a.normal} kind={geo.kind} />}
+      {b && <Plug pin={b.pin} position={b.position} normal={b.normal} kind={geo.kind} />}
       {selected &&
         !readOnly &&
         controlPoints.map((cp, i) => <ControlHandle key={`p${i}`} cableId={id} index={i} position={cp} ghost={false} />)}
@@ -356,9 +391,12 @@ function WirePreview() {
       if (p) end = { position: [p.x, p.y, p.z], normal: [0, 0, 1] };
     }
     if (!end) return;
-    const pts = cableKeyPoints(from, end, [], target ? HOUSING_LENGTH : 0).map((p) => new THREE.Vector3(...p));
+    // Drawn as the cable it will become: coax from an RF port, a jumper wire otherwise.
+    const geo = cableGeometry(from.pin, target && target.key !== from.key ? target.pin : from.pin);
+    const shape = { housingA: geo.housingA, housingB: target ? geo.housingB : 0, leadOut: geo.leadOut };
+    const pts = cableKeyPoints(from, end, [], shape).map((p) => new THREE.Vector3(...p));
     mesh.geometry.dispose();
-    mesh.geometry = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts, false, 'centripetal'), 40, 0.65, 6);
+    mesh.geometry = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts, false, 'centripetal'), 40, geo.radius, 6);
   });
 
   if (!from) return null;

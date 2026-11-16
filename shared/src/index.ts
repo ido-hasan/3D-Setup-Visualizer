@@ -8,4 +8,4 @@ export * from './validate';
 export * from './exports';
 export * from './pinImport';
 export * from './builtin/index';
-export { typeFromName } from './builtin/builder';
+export { typeFromName, rfPortShapes } from './builtin/builder';

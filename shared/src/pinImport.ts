@@ -1,4 +1,4 @@
-import { PIN_GENDERS, PIN_TYPES, type Pin, type PinGender, type PinType, type Strip, type Vec3 } from './types';
+import { PIN_GENDERS, PIN_TYPES, RF_CONNECTORS, type Pin, type PinGender, type PinType, type RfConnector, type Strip, type Vec3 } from './types';
 import { norm } from './vec';
 
 export interface PinImport {
@@ -22,6 +22,9 @@ const TYPE_ALIASES: Record<string, PinType> = {
   CS: 'SPI_CS',
   DIGITAL: 'GPIO',
   IO: 'GPIO',
+  COAX: 'RF',
+  ANT: 'RF',
+  ANTENNA: 'RF',
 };
 
 function parseType(raw: unknown): PinType | undefined {
@@ -34,6 +37,16 @@ function parseType(raw: unknown): PinType | undefined {
 function parseGender(raw: unknown): PinGender {
   const g = typeof raw === 'string' ? raw.trim().toLowerCase() : '';
   return (PIN_GENDERS as string[]).includes(g) ? (g as PinGender) : 'male';
+}
+
+/** Reads "SMA", "bnc", "U.FL", "IPEX" and the like. Returns null for a name it does not know. */
+function parseConnector(raw: unknown): RfConnector | undefined | null {
+  if (raw === undefined || raw === null || String(raw).trim() === '') return undefined;
+  const c = String(raw).trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+  if ((RF_CONNECTORS as readonly string[]).includes(c)) return c as RfConnector;
+  if (c === 'IPEX' || c === 'IPX' || c === 'MHF') return 'UFL';
+  if (c === 'NTYPE') return 'N';
+  return null;
 }
 
 function parseLimit(raw: unknown): 3.3 | 5 | undefined {
@@ -66,6 +79,14 @@ function pinFromRecord(rec: Record<string, unknown>, where: string, newId: () =>
   const pin: Pin = { id: newId(), name, type, position: [x, y, z], normal: norm(normal), gender: parseGender(rec.gender) };
   const limit = parseLimit(rec.limit ?? rec.voltageLimit);
   if (limit) pin.voltageLimit = limit;
+  if (type === 'RF') {
+    const connector = parseConnector(rec.connector);
+    if (connector === null) {
+      errors.push(`${where}: unknown connector "${String(rec.connector)}" (pin "${name}"). Use one of ${RF_CONNECTORS.join(', ')}.`);
+      return undefined;
+    }
+    pin.connector = connector ?? 'SMA';
+  }
   return pin;
 }
 
@@ -94,7 +115,7 @@ function splitCsvLine(line: string): string[] {
 
 /**
  * Read pins from CSV. The first line names the columns: name, type, x, y, z are expected,
- * and gender, nx, ny, nz, limit are optional.
+ * and gender, nx, ny, nz, limit, connector are optional.
  */
 export function parsePinCsv(text: string, newId: () => string): PinImport {
   const errors: string[] = [];
@@ -158,6 +179,7 @@ export function parsePinJson(text: string, newId: () => string): PinImport {
         normal: okVec(s.normal) ? norm(s.normal.map(Number) as Vec3) : [0, 0, 1],
         gender: parseGender(s.gender),
         type: parseType(s.type) ?? 'GPIO',
+        ...(parseConnector(s.connector) ? { connector: parseConnector(s.connector) as RfConnector } : {}),
         overrides: typeof s.overrides === 'object' && s.overrides ? s.overrides : {},
       });
     });
@@ -179,6 +201,7 @@ export function exportPinJson(pins: Pin[], strips: Strip[]): string {
         gender: p.gender,
         normal: p.normal,
         ...(p.voltageLimit ? { limit: p.voltageLimit } : {}),
+        ...(p.connector ? { connector: p.connector } : {}),
       })),
       strips: strips.map(({ id: _id, ...rest }) => rest),
     },

@@ -1,7 +1,7 @@
 import { AlertTriangle, CheckCircle2, Copy, Plus, RotateCcw, RotateCw, Search, Trash2, XCircle } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { CABLE_SWATCHES, cableLength, cableTypeLabel, type Part } from '@viz/shared';
+import { CABLE_SWATCHES, cableDescription, cableGeometry, cableLength, type Part } from '@viz/shared';
 import { PIN_TYPE_LABELS } from '../lib/pinColors';
 import { fmt } from '../lib/util';
 import { NumberInput, PartThumb, TextInput } from '../ui';
@@ -31,7 +31,7 @@ export function PartsPanel({ onAdd }: { onAdd: (partId: string) => void }) {
       const key = part.builtin ? part.category : 'Uploaded';
       map.set(key, [...(map.get(key) ?? []), part]);
     }
-    const order = ['Uploaded', 'Breadboard', 'Microcontroller', 'Single-board computer', 'USB adapter'];
+    const order = ['Uploaded', 'Breadboard', 'Microcontroller', 'Single-board computer', 'USB adapter', 'RF'];
     return [...map.entries()].sort((a, b) => (order.indexOf(a[0]) + 99) % 99 - ((order.indexOf(b[0]) + 99) % 99));
   }, [parts, query]);
 
@@ -204,9 +204,9 @@ function CableInspector({ id }: { id: string }) {
         {a && b && (
           <>
             <dt>Type</dt>
-            <dd>{cableTypeLabel(a.pin, b.pin) === 'USB' ? 'USB cable' : `Jumper ${cableTypeLabel(a.pin, b.pin)}`}</dd>
+            <dd>{cableDescription(a.pin, b.pin)}</dd>
             <dt>Length</dt>
-            <dd>about {fmt(cableLength(a, b, cable.controlPoints) / 10, 0)} cm</dd>
+            <dd>about {fmt(cableLength(a, b, cable.controlPoints, cableGeometry(a.pin, b.pin)) / 10, 0)} cm</dd>
           </>
         )}
       </dl>

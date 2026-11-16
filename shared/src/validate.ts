@@ -9,7 +9,9 @@ export type IssueRule =
   | 'voltage-mismatch'
   | 'no-ground'
   | 'no-power'
-  | 'dangling-cable';
+  | 'dangling-cable'
+  | 'rf-wrong-pin'
+  | 'rf-port-crowded';
 
 export interface Issue {
   id: string;
@@ -97,9 +99,12 @@ function checkBoards(doc: SetupDoc, parts: PartsById, netlist: Netlist, issues: 
     const active = net.pins.filter((p) => !p.part.isBreadboard);
     const boards = new Set(active.map((p) => p.instance.id));
     if (boards.size < 2) continue;
+    // A coax cable between two boards joins their grounds through its shield.
+    const rfBoards = new Set(active.filter((p) => p.pin.type === 'RF').map((p) => p.instance.id));
     for (const p of active) {
       wired.add(p.instance.id);
       if (p.pin.type === 'GND') grounded.add(p.instance.id);
+      if (p.pin.type === 'RF' && rfBoards.size >= 2) grounded.add(p.instance.id);
       if (isPower(p.pin.type)) powered.add(p.instance.id);
     }
   }
@@ -135,6 +140,49 @@ function checkBoards(doc: SetupDoc, parts: PartsById, netlist: Netlist, issues: 
   }
 }
 
+/** RF ports take coax, one cable each. */
+function checkRf(doc: SetupDoc, index: SetupIndex, issues: Issue[]): void {
+  const onPort = new Map<string, { port: ResolvedPin; cableIds: string[] }>();
+  for (const cable of doc.cables) {
+    const a = index.resolve(cable.from);
+    const b = index.resolve(cable.to);
+    if (!a || !b) continue;
+    for (const end of [a, b]) {
+      if (end.pin.type !== 'RF') continue;
+      const entry = onPort.get(end.key) ?? { port: end, cableIds: [] };
+      entry.cableIds.push(cable.id);
+      onPort.set(end.key, entry);
+    }
+    if ((a.pin.type === 'RF') !== (b.pin.type === 'RF')) {
+      const rf = a.pin.type === 'RF' ? a : b;
+      const other = rf === a ? b : a;
+      issues.push({
+        id: `rf-wrong-pin:${cable.id}`,
+        rule: 'rf-wrong-pin',
+        severity: 'error',
+        title: 'RF port wired to an ordinary pin',
+        message: `${label(rf)} is an RF port, but ${label(other)} is not. A coax cable only joins two RF ports.`,
+        cableIds: [cable.id],
+        pins: [rf.ref, other.ref],
+        instanceIds: [...new Set([rf.instance.id, other.instance.id])],
+      });
+    }
+  }
+  for (const { port, cableIds } of onPort.values()) {
+    if (cableIds.length < 2) continue;
+    issues.push({
+      id: `rf-port-crowded:${port.key}`,
+      rule: 'rf-port-crowded',
+      severity: 'error',
+      title: 'RF port has more than one cable',
+      message: `${label(port)} has ${cableIds.length} cables. A coax port takes one connector. Use a splitter to feed two paths.`,
+      cableIds,
+      pins: [port.ref],
+      instanceIds: [port.instance.id],
+    });
+  }
+}
+
 export interface Analysis {
   index: SetupIndex;
   netlist: Netlist;
@@ -161,6 +209,7 @@ export function analyse(doc: SetupDoc, parts: PartsById): Analysis {
     });
   }
   for (const net of netlist.nets) checkNet(net, issues);
+  checkRf(doc, index, issues);
   checkBoards(doc, parts, netlist, issues);
   return { index, netlist, issues };
 }

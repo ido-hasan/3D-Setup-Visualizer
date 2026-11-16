@@ -1,9 +1,63 @@
-import type { BBox, BoardShape, Part, Pin, PinGender, PinType, Strip, StripPinOverride, Vec3 } from '../types';
+import type { BBox, BoardShape, Part, Pin, PinGender, PinType, RfConnector, Strip, StripPinOverride, Vec3 } from '../types';
 import { round } from '../vec';
 
 const P = 2.54;
-const GOLD = '#c9a13b';
+export const GOLD = '#c9a13b';
+export const SILVER = '#c9ccd1';
 const HEADER_BLACK = '#1b1b1d';
+
+/** The box around a list of shapes. */
+export function shapesBBox(shapes: BoardShape[]): BBox {
+  const min: Vec3 = [Infinity, Infinity, Infinity];
+  const max: Vec3 = [-Infinity, -Infinity, -Infinity];
+  for (const s of shapes) {
+    let half: Vec3 = [s.size[0] / 2, s.size[1] / 2, s.size[2] / 2];
+    if (s.kind === 'cyl' && s.axis === 'x') half = [s.size[2] / 2, s.size[0] / 2, s.size[0] / 2];
+    if (s.kind === 'cyl' && s.axis === 'y') half = [s.size[0] / 2, s.size[2] / 2, s.size[0] / 2];
+    if (s.rot) {
+      const r = Math.hypot(half[0], half[1]);
+      half = [r, r, half[2]];
+    }
+    for (let k = 0; k < 3; k++) {
+      min[k] = Math.min(min[k], s.pos[k] - half[k]);
+      max[k] = Math.max(max[k], s.pos[k] + half[k]);
+    }
+  }
+  return { min: min.map((v) => round(v, 2)) as Vec3, max: max.map((v) => round(v, 2)) as Vec3 };
+}
+
+const axisOf = (dir: Vec3): 'x' | 'y' | 'z' => (dir[0] !== 0 ? 'x' : dir[1] !== 0 ? 'y' : 'z');
+
+/**
+ * Shapes for a coaxial connector that sticks out of a part, and where a cable meets it.
+ * `base` is the point on the part's surface and `dir` an axis direction pointing away from it.
+ * A jack (female) is a threaded barrel, a plug (male) is a coupling nut.
+ */
+export function rfPortShapes(base: Vec3, dir: Vec3, connector: RfConnector, gender: 'male' | 'female'): { shapes: BoardShape[]; tip: Vec3 } {
+  const axis = axisOf(dir);
+  const along = (d: number): Vec3 => [round(base[0] + dir[0] * d), round(base[1] + dir[1] * d), round(base[2] + dir[2] * d)];
+  const cyl = (from: number, length: number, diameter: number, color: string, sides?: number): BoardShape => ({
+    kind: 'cyl',
+    pos: along(from + length / 2),
+    size: [diameter, diameter, length],
+    axis,
+    color,
+    ...(sides ? { sides } : {}),
+  });
+  if (connector === 'UFL') {
+    return { shapes: [cyl(0, 0.5, 2.8, '#d9d2c0'), cyl(0.5, 0.8, 2, GOLD)], tip: along(1.3) };
+  }
+  if (connector === 'SMA') {
+    if (gender === 'male') return { shapes: [cyl(0, 8, 8, GOLD, 6)], tip: along(8) };
+    return { shapes: [cyl(0, 1.8, 8, GOLD, 6), cyl(1.8, 6.6, 6.2, GOLD)], tip: along(8.4) };
+  }
+  if (connector === 'BNC') {
+    if (gender === 'male') return { shapes: [cyl(0, 13, 14.5, SILVER)], tip: along(13) };
+    return { shapes: [cyl(0, 2, 12.6, SILVER, 6), cyl(2, 9.5, 9.6, SILVER)], tip: along(11.5) };
+  }
+  if (gender === 'male') return { shapes: [cyl(0, 15, 20, SILVER, 6)], tip: along(15) };
+  return { shapes: [cyl(0, 2.5, 19, SILVER, 6), cyl(2.5, 11, 15.8, SILVER)], tip: along(13.5) };
+}
 
 export type PinDef = string | { name: string; type?: PinType; limit?: 3.3 | 5 };
 
@@ -128,6 +182,35 @@ export class BoardBuilder {
     return this;
   }
 
+  /**
+   * An edge-mounted coax jack. (x, y) is the point on the PCB edge and `out` points off the board.
+   * The connector body straddles the board edge, as edge-launch SMA jacks do.
+   */
+  rfPort(name: string, x: number, y: number, out: Dir, connector: RfConnector = 'SMA'): this {
+    const [ox, oy] = DIRS[out];
+    const z = round(this.pcbZ + this.thickness / 2);
+    const body = 6.4;
+    const depth = 5;
+    this.shapes.push({
+      kind: 'box',
+      pos: [this.cx(x) - (ox * depth) / 2, this.cy(y) - (oy * depth) / 2, z],
+      size: [Math.abs(ox) * depth + Math.abs(oy) * body, Math.abs(oy) * depth + Math.abs(ox) * body, body],
+      color: GOLD,
+    });
+    const port = rfPortShapes([this.cx(x), this.cy(y), z], [ox, oy, 0], connector, 'female');
+    this.shapes.push(...port.shapes);
+    this.pins.push({ id: `rf-${this.pins.length}`, name, type: 'RF', connector, position: port.tip, normal: [ox, oy, 0], gender: 'female' });
+    return this;
+  }
+
+  /** A U.FL jack soldered on top of the board. */
+  ufl(name: string, x: number, y: number): this {
+    const port = rfPortShapes([this.cx(x), this.cy(y), this.top], [0, 0, 1], 'UFL', 'female');
+    this.shapes.push(...port.shapes);
+    this.pins.push({ id: `rf-${this.pins.length}`, name, type: 'RF', connector: 'UFL', position: port.tip, normal: [0, 0, 1], gender: 'female' });
+    return this;
+  }
+
   header(o: HeaderOptions): this {
     const rows = o.rows ?? 1;
     const count = Math.ceil(o.pins.length / rows);
@@ -228,22 +311,7 @@ export class BoardBuilder {
   }
 
   bbox(): BBox {
-    const min: Vec3 = [Infinity, Infinity, Infinity];
-    const max: Vec3 = [-Infinity, -Infinity, -Infinity];
-    for (const s of this.shapes) {
-      let half: Vec3 = [s.size[0] / 2, s.size[1] / 2, s.size[2] / 2];
-      if (s.kind === 'cyl' && s.axis === 'x') half = [s.size[2] / 2, s.size[0] / 2, s.size[0] / 2];
-      if (s.kind === 'cyl' && s.axis === 'y') half = [s.size[0] / 2, s.size[2] / 2, s.size[0] / 2];
-      if (s.rot) {
-        const r = Math.hypot(half[0], half[1]);
-        half = [r, r, half[2]];
-      }
-      for (let k = 0; k < 3; k++) {
-        min[k] = Math.min(min[k], s.pos[k] - half[k]);
-        max[k] = Math.max(max[k], s.pos[k] + half[k]);
-      }
-    }
-    return { min: min.map((v) => round(v, 2)) as Vec3, max: max.map((v) => round(v, 2)) as Vec3 };
+    return shapesBBox(this.shapes);
   }
 
   build(meta: Pick<Part, 'id' | 'name' | 'category' | 'logicVoltage'> & Partial<Part>): Part {

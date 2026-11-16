@@ -17,11 +17,19 @@ export const PIN_TYPES = [
   'SPI_SCK',
   'SPI_CS',
   'USB',
+  'RF',
   'OTHER',
 ] as const;
 export type PinType = (typeof PIN_TYPES)[number];
 
-/** male = a pin you push a female jumper onto, female = a socket, hole = breadboard hole. */
+/** Coaxial connector families an RF port can have. */
+export const RF_CONNECTORS = ['SMA', 'BNC', 'N', 'UFL'] as const;
+export type RfConnector = (typeof RF_CONNECTORS)[number];
+
+/**
+ * male = a pin you push a female jumper onto, female = a socket, hole = breadboard hole.
+ * For an RF port, male is a plug and female is a jack.
+ */
 export type PinGender = 'male' | 'female' | 'hole';
 export const PIN_GENDERS: PinGender[] = ['male', 'female', 'hole'];
 
@@ -39,6 +47,8 @@ export interface Pin {
   /** Unit vector: the direction a cable leaves the pin. */
   normal: Vec3;
   gender: PinGender;
+  /** RF ports only: the connector family. */
+  connector?: RfConnector;
   /** Set on pins generated from a strip. */
   stripId?: string;
   /** Index of the pin inside its strip. */
@@ -75,6 +85,8 @@ export interface Strip {
   gender: PinGender;
   /** Type given to pins that have no override. */
   type: PinType;
+  /** Connector family of the strip's RF pins. */
+  connector?: RfConnector;
   /** Per-pin changes, keyed by pin index (column * rows + row). */
   overrides: Record<string, StripPinOverride>;
 }
@@ -89,6 +101,8 @@ export interface BoardShape {
   axis?: 'x' | 'y' | 'z';
   /** Rotation about Z in degrees (boxes). */
   rot?: number;
+  /** Cylinders: number of flat sides. 6 draws a hex nut. Default is round. */
+  sides?: number;
   color: string;
 }
 
@@ -108,6 +122,7 @@ export const PART_CATEGORIES = [
   'Microcontroller',
   'Single-board computer',
   'USB adapter',
+  'RF',
   'Breadboard',
   'Sensor / module',
   'Custom hardware',

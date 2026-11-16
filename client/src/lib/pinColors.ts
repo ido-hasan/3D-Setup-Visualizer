@@ -1,4 +1,4 @@
-import type { PinType } from '@viz/shared';
+import type { PinType, RfConnector } from '@viz/shared';
 
 /** Marker colour for each pin type. */
 export const PIN_COLORS: Record<PinType, string> = {
@@ -17,6 +17,7 @@ export const PIN_COLORS: Record<PinType, string> = {
   SPI_SCK: '#8a6417',
   SPI_CS: '#a98a4f',
   USB: '#5d6673',
+  RF: '#d9a514',
   OTHER: '#98a2b3',
 };
 
@@ -36,5 +37,8 @@ export const PIN_TYPE_LABELS: Record<PinType, string> = {
   SPI_SCK: 'SPI SCK',
   SPI_CS: 'SPI CS',
   USB: 'USB',
+  RF: 'RF port (coax)',
   OTHER: 'Other',
 };
+
+export const RF_CONNECTOR_LABELS: Record<RfConnector, string> = { SMA: 'SMA', BNC: 'BNC', N: 'N', UFL: 'U.FL' };
