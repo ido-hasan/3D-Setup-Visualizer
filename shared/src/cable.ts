@@ -162,16 +162,23 @@ export function cableKeyPoints(
   geometry: Pick<CableGeometry, 'housingA' | 'housingB' | 'leadOut'> = JUMPER_GEOMETRY,
 ): Vec3[] {
   const a0 = add(a.position, scale(a.normal, geometry.housingA));
-  const a1 = add(a0, scale(a.normal, geometry.leadOut));
   const b0 = add(b.position, scale(b.normal, geometry.housingB));
-  const b1 = add(b0, scale(b.normal, geometry.leadOut));
+  // Two ports that face each other at short range: the straight runs would pass each other
+  // and knot the cable, so they are shortened to fit the gap.
+  let lead = geometry.leadOut;
+  const gap = dist(a0, b0);
+  const facing = dist(add(a0, scale(a.normal, lead)), add(b0, scale(b.normal, lead))) < gap;
+  if (facing) lead = Math.min(lead, gap / 3);
+  const a1 = add(a0, scale(a.normal, lead));
+  const b1 = add(b0, scale(b.normal, lead));
   let middle: Vec3[];
   if (controlPoints.length > 0) {
     middle = controlPoints;
   } else {
     const span = dist(a1, b1);
     const mid = lerp(a1, b1, 0.5);
-    const arch = Math.min(30, Math.max(3, span * 0.16));
+    // Pins side by side need a visible loop. Ports that face each other do not, so a short run stays nearly straight.
+    const arch = Math.min(30, Math.max(facing ? 0 : 3, span * 0.16));
     middle = [[mid[0], mid[1], Math.max(mid[2] + arch, 2)]];
   }
   return [a0, a1, ...middle, b1, b0];

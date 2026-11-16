@@ -7,6 +7,7 @@ import {
   CABLE_COLORS,
   cableDescription,
   cableGeometry,
+  cableKeyPoints,
   cableKind,
   cableTypeLabel,
   coaxEnd,
@@ -128,6 +129,24 @@ describe('coax cables', () => {
     expect(cableGeometry(bnc, bnc).radius).toBeGreaterThan(sma.radius);
     expect(cableGeometry(smaJack, ufl).radius).toBeLessThan(jumper.radius);
     expect(sma.leadOut).toBeGreaterThan(jumper.leadOut);
+  });
+
+  it('does not knot between two ports that face each other at short range', () => {
+    const geo = cableGeometry(smaJack, smaJack);
+    // Port tips 30 mm apart, pointing at each other along X.
+    const a = { position: [0, 0, 5] as [number, number, number], normal: [1, 0, 0] as [number, number, number] };
+    const b = { position: [30, 0, 5] as [number, number, number], normal: [-1, 0, 0] as [number, number, number] };
+    const xs = cableKeyPoints(a, b, [], geo).map((p) => p[0]);
+    expect(xs).toEqual([...xs].sort((p, q) => p - q)); // runs left to right, never doubling back
+    const pts = cableKeyPoints(a, b, [], geo);
+    expect(Math.max(...pts.map((p) => p[2])) - 5).toBeLessThan(1.5); // and stays nearly straight
+    // Far apart, the full straight run is kept.
+    const far = cableKeyPoints(a, { ...b, position: [200, 0, 5] }, [], geo);
+    expect(far[1][0] - far[0][0]).toBeCloseTo(geo.leadOut, 5);
+    // Side by side and pointing the same way, nothing is shortened either.
+    const up = { position: [0, 0, 5] as [number, number, number], normal: [0, 0, 1] as [number, number, number] };
+    const beside = cableKeyPoints(up, { ...up, position: [2.54, 0, 5] }, []);
+    expect(beside[1][2] - beside[0][2]).toBeCloseTo(5, 5);
   });
 
   it('gets its own colour', () => {

@@ -5,9 +5,10 @@ A web app for drawing hardware bench setups in 3D: put boards on a bench, connec
 ## What it does
 
 - **Parts library.** Breadboards (full, half, mini), Arduino Uno R3, Nano and Mega 2560, Raspberry Pi 4 Model B, STM32 Blue Pill, STM32F4 Discovery, and FTDI FT232RL and CH340G USB-serial adapters ship with the app, with their pins already named.
+- **RF parts and coax cables.** SDRs and instruments, amplifier and switch modules, attenuators, filters, splitters and antennas ship with the app. A cable drawn between two RF ports is a coax cable with the right connector on each end.
 - **Your own hardware.** Upload a STEP, STL, OBJ or GLB file. Check its size against an Arduino Uno and a ruler, lay it flat, then mark where its pins are: one by one, as a header strip, or from a CSV or JSON list.
 - **Setups.** Drag parts onto the bench, move and rotate them, and draw cables from pin to pin. Boards such as the Nano plug into a breadboard and connect to its rows.
-- **Wiring checks.** The app warns about power shorted to ground, 5 V tied to 3.3 V, 5 V reaching a 3.3 V-only pin, and boards with no ground or power connection.
+- **Wiring checks.** The app warns about power shorted to ground, 5 V tied to 3.3 V, 5 V reaching a 3.3 V-only pin, and boards with no ground or power connection, an RF port wired to an ordinary pin, and more than one cable on an RF port.
 - **Exports.** Screenshot (PNG), wiring list and bill of materials (on screen, CSV, print), and a view-only link.
 - **Saving.** Every change is saved automatically. Ctrl+Z and Ctrl+Y undo and redo.
 
@@ -77,6 +78,29 @@ To load many pins at once, use **Import** in the pin editor. CSV columns are `na
 5. Click a cable to change its colour or label. Drag the white dot on it to route it.
 6. Problems appear under **Checks** on the right.
 
+### RF parts and coax cables
+
+The **RF** group of the library holds:
+
+| Kind | Parts |
+| --- | --- |
+| SDRs and instruments | RTL-SDR dongle, HackRF One, NanoVNA, tinySA spectrum analyzer |
+| Amplifiers and switches | LNA module, power amplifier module, SPDT RF switch, mixer |
+| Passive parts | SMA attenuator, 50 Ω terminator, DC block, low-pass filter, bias tee, 2-way power splitter, directional coupler |
+| Antennas | Whip antenna (SMA), patch antenna (U.FL), GPS puck antenna |
+
+RF ports are the gold dots in wire mode. Draw a cable between two of them the same way as a jumper wire, and it becomes a coax cable:
+
+- It takes the mating connector for each port. A cable between an SMA jack and a BNC jack is listed as "BNC male to SMA male".
+- The wiring list and the bill of materials name it by its two ends and the standard length that reaches.
+- The coax shield counts as a common ground between the two parts.
+
+Parts are joined by cables only. An attenuator or an antenna does not screw straight onto a port yet, so it sits on the bench with a short coax cable to the port.
+
+The app reports two RF mistakes: a cable from an RF port to an ordinary pin, and two cables on one RF port. It does not check power levels, port direction or unterminated ports.
+
+To give your own hardware RF ports, set a pin's type to **RF port (coax)** in the pin editor, then choose its connector (SMA, BNC, N or U.FL) and whether it is a plug or a jack. In a CSV pin list, use the type `RF` and the optional column `connector`.
+
 ### Keyboard shortcuts
 
 | Key | Setup editor | Pin editor |
@@ -102,7 +126,7 @@ There is no login. Anyone who can reach the address can open and change setups. 
 
 ## About the bundled boards
 
-The bundled Arduino, Raspberry Pi, STM32 and USB-adapter boards are simplified models drawn by this app, not the manufacturers' 3D files. Header positions follow the public board drawings. **Check pin names against the manufacturer's documentation before relying on them**: they have not been verified against it, and the header spacing of the STM32F4 Discovery is approximate.
+The bundled Arduino, Raspberry Pi, STM32, USB-adapter and RF parts are simplified models drawn by this app, not the manufacturers' 3D files. The sizes of the RF parts are approximate. Header positions follow the public board drawings. **Check pin names against the manufacturer's documentation before relying on them**: they have not been verified against it, and the header spacing of the STM32F4 Discovery is approximate.
 
 To use a real 3D model for a bundled board, open it in the library, choose **Duplicate to edit**, then **Replace 3D model**. The pins are kept.
 
