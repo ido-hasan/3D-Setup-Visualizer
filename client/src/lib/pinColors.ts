@@ -41,4 +41,4 @@ export const PIN_TYPE_LABELS: Record<PinType, string> = {
   OTHER: 'Other',
 };
 
-export const RF_CONNECTOR_LABELS: Record<RfConnector, string> = { SMA: 'SMA', BNC: 'BNC', N: 'N', UFL: 'U.FL' };
+export const RF_CONNECTOR_LABELS: Record<RfConnector, string> = { SMA: 'SMA', BNC: 'BNC', N: 'N', UFL: 'U.FL', MMPX: 'MMPX' };

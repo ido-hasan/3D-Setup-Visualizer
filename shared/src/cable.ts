@@ -76,14 +76,17 @@ export interface CoaxConnectorSize {
   /** Radius of the coax normally used with it. */
   cableRadius: number;
   metal: 'gold' | 'silver';
+  /** The plug has a hex coupling nut. Bayonet and snap-on plugs are round. */
+  hexNut: boolean;
 }
 
 /** Approximate sizes of each connector family, used to draw cable ends. */
 export const COAX_CONNECTORS: Record<RfConnector, CoaxConnectorSize> = {
-  SMA: { label: 'SMA', diameter: 8, length: 12, overlap: 6, cableRadius: 1.3, metal: 'gold' },
-  BNC: { label: 'BNC', diameter: 14.5, length: 22, overlap: 9, cableRadius: 2.5, metal: 'silver' },
-  N: { label: 'N', diameter: 20, length: 28, overlap: 10, cableRadius: 3.4, metal: 'silver' },
-  UFL: { label: 'U.FL', diameter: 2.6, length: 2.4, overlap: 0, cableRadius: 0.55, metal: 'gold' },
+  SMA: { label: 'SMA', diameter: 8, length: 12, overlap: 6, cableRadius: 1.3, metal: 'gold', hexNut: true },
+  BNC: { label: 'BNC', diameter: 14.5, length: 22, overlap: 9, cableRadius: 2.5, metal: 'silver', hexNut: false },
+  N: { label: 'N', diameter: 20, length: 28, overlap: 10, cableRadius: 3.4, metal: 'silver', hexNut: true },
+  UFL: { label: 'U.FL', diameter: 2.6, length: 2.4, overlap: 0, cableRadius: 0.55, metal: 'gold', hexNut: false },
+  MMPX: { label: 'MMPX', diameter: 3.8, length: 7.5, overlap: 2.5, cableRadius: 0.9, metal: 'gold', hexNut: false },
 };
 
 /** The end of a coax cable that mates with a port. Undefined for a pin that is not an RF port. */

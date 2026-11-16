@@ -43,8 +43,8 @@ const rules = (d: ReturnType<typeof doc>) => analyse(d, parts).issues.map((i) =>
 describe('bundled RF parts', () => {
   const rf = builtinParts().filter((p) => p.category === 'RF');
 
-  it('ships all eighteen, each with at least one RF port that names its connector', () => {
-    expect(rf).toHaveLength(18);
+  it('ships all sixteen, each with at least one RF port that names its connector', () => {
+    expect(rf).toHaveLength(16);
     for (const part of rf) {
       const ports = partPins(part).filter((p) => p.type === 'RF');
       expect(ports.length, part.name).toBeGreaterThan(0);

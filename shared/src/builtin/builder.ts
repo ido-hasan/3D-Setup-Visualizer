@@ -47,6 +47,11 @@ export function rfPortShapes(base: Vec3, dir: Vec3, connector: RfConnector, gend
   if (connector === 'UFL') {
     return { shapes: [cyl(0, 0.5, 2.8, '#d9d2c0'), cyl(0.5, 0.8, 2, GOLD)], tip: along(1.3) };
   }
+  if (connector === 'MMPX') {
+    // A small snap-on connector: no thread and no nut.
+    if (gender === 'male') return { shapes: [cyl(0, 6, 3.8, GOLD)], tip: along(6) };
+    return { shapes: [cyl(0, 0.8, 4.4, GOLD), cyl(0.8, 3, 3.2, GOLD)], tip: along(3.8) };
+  }
   if (connector === 'SMA') {
     if (gender === 'male') return { shapes: [cyl(0, 8, 8, GOLD, 6)], tip: along(8) };
     return { shapes: [cyl(0, 1.8, 8, GOLD, 6), cyl(1.8, 6.6, 6.2, GOLD)], tip: along(8.4) };

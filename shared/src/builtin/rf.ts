@@ -1,73 +1,6 @@
-import type { BoardShape, Part, Pin, PinGender, PinType, RfConnector, Vec3 } from '../types';
-import { round } from '../vec';
-import { BoardBuilder, GOLD, rfPortShapes, shapesBBox, SILVER, type PinDef } from './builder';
-
-const BLACK = '#1d1d20';
-const DARK = '#2a2a2e';
-const NOTE = 'Simplified model drawn by the app. Sizes are approximate.';
-
-const LEFT: Vec3 = [-1, 0, 0];
-const RIGHT: Vec3 = [1, 0, 0];
-const BACK: Vec3 = [0, 1, 0];
-
-/**
- * Draws a part that has no circuit board, such as a barrel attenuator or an instrument in a case.
- * Coordinates are free while drawing. build() then puts the part on the bench with the centre
- * of its base at the origin, the way every part is stored.
- */
-class Body {
-  shapes: BoardShape[] = [];
-  pins: Pin[] = [];
-
-  box(pos: Vec3, size: Vec3, color: string): this {
-    this.shapes.push({ kind: 'box', pos, size, color });
-    return this;
-  }
-
-  cyl(pos: Vec3, diameter: number, length: number, axis: 'x' | 'y' | 'z', color: string, sides?: number): this {
-    this.shapes.push({ kind: 'cyl', pos, size: [diameter, diameter, length], axis, color, ...(sides ? { sides } : {}) });
-    return this;
-  }
-
-  /** A coax connector on the surface at `base`, pointing along `dir`. */
-  port(name: string, base: Vec3, dir: Vec3, gender: 'male' | 'female' = 'female', connector: RfConnector = 'SMA'): this {
-    const { shapes, tip } = rfPortShapes(base, dir, connector, gender);
-    this.shapes.push(...shapes);
-    this.pins.push({ id: `p${this.pins.length}`, name, type: 'RF', connector, position: tip, normal: dir, gender });
-    return this;
-  }
-
-  /** A solder pin for a jumper wire, standing out of the surface. */
-  pin(name: string, type: PinType, base: Vec3, dir: Vec3): this {
-    const axis = dir[0] !== 0 ? 'x' : dir[1] !== 0 ? 'y' : 'z';
-    this.cyl([base[0] + dir[0] * 3, base[1] + dir[1] * 3, base[2] + dir[2] * 3], 1.2, 6, axis, GOLD);
-    this.pins.push({ id: `p${this.pins.length}`, name, type, position: base, normal: dir, gender: 'male' });
-    return this;
-  }
-
-  usb(name: string, position: Vec3, dir: Vec3, gender: PinGender = 'female'): this {
-    this.pins.push({ id: `p${this.pins.length}`, name, type: 'USB', position, normal: dir, gender });
-    return this;
-  }
-
-  build(meta: Pick<Part, 'id' | 'name'> & Partial<Part>): Part {
-    const raw = shapesBBox(this.shapes);
-    const shift: Vec3 = [-(raw.min[0] + raw.max[0]) / 2, -(raw.min[1] + raw.max[1]) / 2, -raw.min[2]];
-    const move = (p: Vec3): Vec3 => [round(p[0] + shift[0]), round(p[1] + shift[1]), round(p[2] + shift[2])];
-    const shapes = this.shapes.map((s) => ({ ...s, pos: move(s.pos) }));
-    return {
-      category: 'RF',
-      logicVoltage: 5,
-      model: { kind: 'board', spec: { shapes } },
-      builtin: true,
-      bbox: shapesBBox(shapes),
-      pins: this.pins.map((p) => ({ ...p, position: move(p.position) })),
-      strips: [],
-      note: NOTE,
-      ...meta,
-    };
-  }
-}
+import type { Part, PinType } from '../types';
+import { BACK, BLACK, Body, DARK, LEFT, NOTE, RIGHT } from './body';
+import { BoardBuilder, GOLD, SILVER, type PinDef } from './builder';
 
 const power = (name: string, type: PinType, limit?: 3.3 | 5): PinDef => ({ name, type, limit });
 
@@ -153,32 +86,7 @@ function mixer(): Part {
     .build({ id: 'builtin:rf-mixer', name: 'Mixer' });
 }
 
-// SDRs and instruments
-
-function rtlSdr(): Part {
-  return new Body()
-    .box([0, 0, 6], [66, 26, 12], '#b9bcc2')
-    .box([-34, 0, 6], [2, 26, 12], DARK)
-    .box([34, 0, 6], [2, 26, 12], DARK)
-    .box([-42, 0, 6], [14, 12, 4.5], SILVER)
-    .usb('USB plug', [-49, 0, 6], LEFT, 'male')
-    .port('ANT', [35, 0, 6], RIGHT)
-    .build({ id: 'builtin:rf-rtl-sdr', name: 'RTL-SDR dongle' });
-}
-
-function hackRf(): Part {
-  const b = new Body()
-    .box([0, 0, 8.5], [124, 78, 17], BLACK)
-    .box([0, 0, 17.1], [104, 60, 0.2], DARK)
-    .box([-62.5, -20, 8.5], [2, 8, 3], SILVER)
-    .usb('USB', [-63.5, -20, 8.5], LEFT)
-    .port('ANTENNA', [62, 22, 8.5], RIGHT)
-    .port('CLKIN', [-62, 24, 8.5], LEFT)
-    .port('CLKOUT', [-62, 8, 8.5], LEFT);
-  // Status lights along the antenna end.
-  ['#3fbf4f', '#3fbf4f', '#f2c230', '#f2c230', '#d6392c', '#d6392c'].forEach((color, i) => b.box([56, -26 + i * 5, 17.2], [2, 1.5, 0.4], color));
-  return b.build({ id: 'builtin:rf-hackrf-one', name: 'HackRF One' });
-}
+// Instruments
 
 function nanoVna(): Part {
   return new Body()
@@ -266,8 +174,6 @@ let cache: Part[] | undefined;
 
 export function builtinRfParts(): Part[] {
   cache ??= [
-    rtlSdr(),
-    hackRf(),
     nanoVna(),
     tinySa(),
     lna(),

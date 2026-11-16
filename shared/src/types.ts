@@ -23,7 +23,7 @@ export const PIN_TYPES = [
 export type PinType = (typeof PIN_TYPES)[number];
 
 /** Coaxial connector families an RF port can have. */
-export const RF_CONNECTORS = ['SMA', 'BNC', 'N', 'UFL'] as const;
+export const RF_CONNECTORS = ['SMA', 'BNC', 'N', 'UFL', 'MMPX'] as const;
 export type RfConnector = (typeof RF_CONNECTORS)[number];
 
 /**
@@ -122,6 +122,7 @@ export const PART_CATEGORIES = [
   'Microcontroller',
   'Single-board computer',
   'USB adapter',
+  'SDR',
   'RF',
   'Breadboard',
   'Sensor / module',

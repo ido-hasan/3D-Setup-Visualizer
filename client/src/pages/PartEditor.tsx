@@ -432,7 +432,7 @@ function ImportDialog({ onClose }: { onClose: () => void }) {
         Paste a pin list, or choose a .csv or .json file. Positions are in millimetres from the centre of the model's base: X to the right, Y to the back, Z up.
       </p>
       <p className="hint">
-        CSV columns: <code>name, type, x, y, z</code>, and optionally <code>gender</code> (male or female), <code>nx, ny, nz</code> (direction the cable leaves), <code>limit</code> (3.3 or 5) and <code>connector</code> (SMA, BNC, N or UFL, for RF ports). Types:{' '}
+        CSV columns: <code>name, type, x, y, z</code>, and optionally <code>gender</code> (male or female), <code>nx, ny, nz</code> (direction the cable leaves), <code>limit</code> (3.3 or 5) and <code>connector</code> (SMA, BNC, N, UFL or MMPX, for RF ports). Types:{' '}
         {PIN_TYPES.join(', ')}. JSON is the format that Export pins writes.
       </p>
       <textarea

@@ -31,7 +31,7 @@ export function PartsPanel({ onAdd }: { onAdd: (partId: string) => void }) {
       const key = part.builtin ? part.category : 'Uploaded';
       map.set(key, [...(map.get(key) ?? []), part]);
     }
-    const order = ['Uploaded', 'Breadboard', 'Microcontroller', 'Single-board computer', 'USB adapter', 'RF'];
+    const order = ['Uploaded', 'Breadboard', 'Microcontroller', 'Single-board computer', 'USB adapter', 'SDR', 'RF'];
     return [...map.entries()].sort((a, b) => (order.indexOf(a[0]) + 99) % 99 - ((order.indexOf(b[0]) + 99) % 99));
   }, [parts, query]);
 

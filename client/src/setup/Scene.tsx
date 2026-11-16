@@ -188,7 +188,7 @@ function Plug({ pin, position, normal, kind }: { pin: Pin; position: Vec3; norma
     const start = male ? -size.overlap : 0;
     const diameter = male ? size.diameter : size.diameter * 0.78;
     return (
-      <mesh geometry={male && end.connector !== 'UFL' ? hexNut : roundBarrel} position={at(start, size.length)} quaternion={quaternion} scale={[diameter, diameter, size.length]}>
+      <mesh geometry={male && size.hexNut ? hexNut : roundBarrel} position={at(start, size.length)} quaternion={quaternion} scale={[diameter, diameter, size.length]}>
         <meshStandardMaterial color={METAL[size.metal]} roughness={0.45} metalness={0.2} />
       </mesh>
     );
