@@ -6,7 +6,6 @@ const server = 'http://localhost:4700';
 export default defineConfig({
   plugins: [react()],
   server: {
-    host: true,
     proxy: { '/api': server, '/files': server },
   },
   build: { chunkSizeWarningLimit: 2000 },

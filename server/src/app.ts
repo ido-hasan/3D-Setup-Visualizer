@@ -162,11 +162,11 @@ export function buildApp(opts: AppOptions): { app: FastifyInstance; store: Store
   // The web app itself.
 
   if (opts.clientDir && existsSync(opts.clientDir)) {
-    app.register(fastifyStatic, { root: opts.clientDir, prefix: '/', wildcard: false });
+    app.register(fastifyStatic, { root: opts.clientDir, prefix: '/' });
     app.setNotFoundHandler((req, reply) => {
-      if (req.method !== 'GET' || req.url.startsWith('/api/') || req.url.startsWith('/files/')) {
-        return reply.code(404).send({ error: 'Not found.' });
-      }
+      const pathOnly = req.url.split('?')[0];
+      const isPage = req.method === 'GET' && !pathOnly.startsWith('/api/') && !pathOnly.startsWith('/files/') && !/\.[a-z0-9]+$/i.test(pathOnly);
+      if (!isPage) return reply.code(404).send({ error: 'Not found.' });
       // Any other address is a page inside the app.
       return reply.sendFile('index.html');
     });

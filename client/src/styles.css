@@ -489,7 +489,7 @@ textarea.input {
   border-left: 1px solid var(--border);
 }
 .side.wide {
-  width: 360px;
+  width: 400px;
 }
 .side-section {
   padding: 12px 14px;
@@ -933,9 +933,27 @@ table.data tr.clickable:hover td,
 table.data tr.selected td {
   background: var(--accent-weak);
 }
+table.pins {
+  table-layout: fixed;
+}
+table.pins th:nth-child(1) {
+  width: 40px;
+}
+table.pins th:nth-child(3) {
+  width: 118px;
+}
+table.pins th:nth-child(4) {
+  width: 96px;
+}
+table.pins th:nth-child(5) {
+  width: 30px;
+}
 table.pins td {
   padding: 2px 3px;
   border-bottom: none;
+}
+table.pins td.num {
+  white-space: nowrap;
 }
 table.pins th {
   padding: 4px 3px;

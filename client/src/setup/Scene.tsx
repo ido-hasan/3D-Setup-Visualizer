@@ -218,7 +218,7 @@ function ControlHandle({ cableId, index, position, ghost }: { cableId: string; i
       geometry={unitSphere}
       position={position}
       scale={ghost ? 1.7 : 2.2}
-      userData={{ cablePart: true }}
+      userData={{ cablePart: true, handle: true }}
       renderOrder={20}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
@@ -312,6 +312,8 @@ function CableView({ id }: { id: string }) {
           userData={{ cablePart: true }}
           onPointerDown={(e) => {
             if (e.button !== 0) return;
+            // A routing handle sits inside this click area. Let it take the press.
+            if (e.intersections.some((hit) => hit.object.userData.handle)) return;
             e.stopPropagation();
             select({ kind: 'cable', id });
           }}

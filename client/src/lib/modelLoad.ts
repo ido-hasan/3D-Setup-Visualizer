@@ -183,7 +183,10 @@ export async function loadModelFiles(files: File[]): Promise<LoadedModel> {
 
   if (format === 'stl') {
     const geometry = new STLLoader().parse(await main.arrayBuffer());
-    if (!geometry.attributes.normal) geometry.computeVertexNormals();
+    // Many STL writers leave the stored normals at zero, so work them out from the triangles.
+    geometry.deleteAttribute('normal');
+    geometry.computeVertexNormals();
+    if (geometry.attributes.position.count === 0) throw new Error('No surfaces were found in this STL file.');
     const colored = Boolean((geometry as THREE.BufferGeometry & { hasColors?: boolean }).hasColors);
     const material = new THREE.MeshStandardMaterial({
       color: colored ? '#ffffff' : DEFAULT_MODEL_COLOR,

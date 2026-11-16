@@ -42,7 +42,7 @@ import { PIN_COLORS, PIN_TYPE_LABELS } from '../lib/pinColors';
 import { downloadText, newId, safeFileName } from '../lib/util';
 import { PartScene } from '../part/PartScene';
 import { mutatePart, openPart, redoPart, savePartNow, schedulePartSave, setPartTool, undoPart, usePartEditor } from '../part/store';
-import { setView, Stage, type StageBridge } from '../three/Stage';
+import { setView, Stage, whenStageReady, type StageBridge } from '../three/Stage';
 import { Confirm, Loading, Modal, NumberInput, TextInput } from '../ui';
 import { Brand } from './Home';
 
@@ -509,10 +509,7 @@ export function PartEditor() {
         openPart(found);
         document.title = `${found.name} · 3D Setup Visualizer`;
         setStatus('ready');
-        setTimeout(() => {
-          const state = bridge.current?.();
-          if (state) setView(state, 'iso', found.bbox);
-        }, 60);
+        whenStageReady(bridge, (state) => setView(state, 'iso', found.bbox));
       })
       .catch((e) => {
         if (!live) return;

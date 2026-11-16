@@ -10,7 +10,7 @@ import { loadModelFiles, MODEL_EXTENSIONS, type LoadedModel } from '../lib/model
 import { dataUrlToBlob, renderThumbnail } from '../lib/thumbnail';
 import { fmt } from '../lib/util';
 import { PartModel } from '../three/PartModel';
-import { setView, Stage, type StageBridge } from '../three/Stage';
+import { setView, Stage, whenStageReady, type StageBridge } from '../three/Stage';
 import { NumberInput } from '../ui';
 import { Brand } from './Home';
 
@@ -146,16 +146,19 @@ export function UploadWizard() {
     }
   };
 
-  // Frame the model once it is on screen.
+  // Frame the model when a file is opened and when its size changes, not on every turn.
+  const needsFrame = useRef(true);
   useEffect(() => {
-    if (!model) return;
-    const t = setTimeout(() => {
-      const state = bridge.current?.();
-      if (state) setView(state, 'iso', { min: [bbox.min[0] - 90, bbox.min[1] - 40, 0], max: [bbox.max[0], bbox.max[1], bbox.max[2]] });
-    }, 80);
-    return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [model, unit]);
+    needsFrame.current = true;
+  }, [model, unit, scale]);
+  useEffect(() => {
+    if (!model || !needsFrame.current || bbox.max[2] === 0) return;
+    return whenStageReady(bridge, (state) => {
+      needsFrame.current = false;
+      // Leave room on the left for the Arduino Uno shown for scale.
+      setView(state, 'iso', { min: [bbox.min[0] - 85, Math.min(bbox.min[1], -27), 0], max: [bbox.max[0], Math.max(bbox.max[1], 27), bbox.max[2]] });
+    });
+  }, [model, bbox]);
 
   const rotate = (axis: keyof typeof AXES, deg = 90) =>
     setRotation((q) => new THREE.Quaternion().setFromAxisAngle(AXES[axis], (deg * Math.PI) / 180).multiply(q));
@@ -405,14 +408,12 @@ export function UploadWizard() {
                 {error}
               </p>
             )}
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button className="btn" onClick={() => setModel(null)} disabled={busy !== ''}>
-                Choose another file
-              </button>
-              <button className="btn primary" onClick={() => void save()} disabled={busy !== '' || longest === 0}>
-                {busy === 'saving' ? 'Saving…' : replacing ? 'Save new model' : 'Save and mark the pins'} <ArrowRight />
-              </button>
-            </div>
+            <button className="btn primary" onClick={() => void save()} disabled={busy !== '' || longest === 0}>
+              {busy === 'saving' ? 'Saving…' : replacing ? 'Save new model' : 'Save and mark the pins'} <ArrowRight />
+            </button>
+            <button className="btn" onClick={() => setModel(null)} disabled={busy !== ''}>
+              Choose another file
+            </button>
           </div>
         </aside>
       </div>

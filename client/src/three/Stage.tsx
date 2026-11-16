@@ -94,6 +94,18 @@ export function Stage({ children, bridge, cameraPosition = [150, -230, 200], tar
   );
 }
 
+/** Run something as soon as the 3D view exists. It is created a moment after the page. */
+export function whenStageReady(bridge: StageBridge, fn: (state: RootState) => void, tries = 60): () => void {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const attempt = (left: number) => {
+    const state = bridge.current?.();
+    if (state && state.controls && state.size.width > 0) fn(state);
+    else if (left > 0) timer = setTimeout(() => attempt(left - 1), 50);
+  };
+  timer = setTimeout(() => attempt(tries), 30);
+  return () => clearTimeout(timer);
+}
+
 export type ViewName = 'top' | 'front' | 'iso' | 'current';
 
 const VIEW_DIRS: Record<Exclude<ViewName, 'current'>, THREE.Vector3> = {

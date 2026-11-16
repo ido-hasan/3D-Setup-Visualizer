@@ -47,7 +47,7 @@ import {
   useAnalysis,
   useEditor,
 } from '../setup/store';
-import { screenToPlane, setView, Stage, type StageBridge, type ViewName } from '../three/Stage';
+import { screenToPlane, setView, Stage, whenStageReady, type StageBridge, type ViewName } from '../three/Stage';
 import { Loading, Menu, TextInput } from '../ui';
 import { Brand } from './Home';
 
@@ -164,7 +164,7 @@ export function SetupEditor({ shared = false }: { shared?: boolean }) {
       document.title = `${setup.name} · 3D Setup Visualizer`;
       setStatus('ready');
       // Frame the bench once the canvas exists.
-      setTimeout(() => frame('iso'), 60);
+      whenStageReady(bridge, () => frame('iso'));
     } catch (e) {
       setError((e as Error).message);
       setStatus('error');

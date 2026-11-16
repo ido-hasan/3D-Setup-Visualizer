@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { existsSync, mkdtempSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import type { FastifyInstance } from 'fastify';
@@ -125,5 +125,32 @@ describe('parts and files', () => {
     expect(bad.statusCode).toBe(400);
     expect((await app.inject({ url: '/files/..%2Fapp.db' })).statusCode).toBeGreaterThanOrEqual(400);
     expect((await app.inject({ method: 'POST', url: '/api/parts', ...json({ name: 'x' }) })).statusCode).toBe(400);
+  });
+});
+
+describe('serving the web app', () => {
+  it('serves files added after start, sends pages to index.html, and answers 404 for missing files', async () => {
+    const clientDir = path.join(dir, 'client');
+    mkdirSync(path.join(clientDir, 'assets'), { recursive: true });
+    writeFileSync(path.join(clientDir, 'index.html'), '<title>app</title>');
+    const web = buildApp({ dataDir: path.join(dir, 'web-data'), clientDir }).app;
+    try {
+      await web.ready();
+      // A rebuild writes new asset names while the server keeps running.
+      writeFileSync(path.join(clientDir, 'assets', 'index-new.js'), 'console.log(1)');
+      const asset = await web.inject({ url: '/assets/index-new.js' });
+      expect(asset.statusCode).toBe(200);
+      expect(asset.headers['content-type']).toContain('javascript');
+      for (const url of ['/', '/setups/abc', '/s/token', '/parts/builtin%3Aarduino-uno']) {
+        const res = await web.inject({ url });
+        expect(res.statusCode).toBe(200);
+        expect(res.body).toContain('<title>app</title>');
+      }
+      expect((await web.inject({ url: '/assets/index-old.js' })).statusCode).toBe(404);
+      expect((await web.inject({ url: '/api/nope' })).statusCode).toBe(404);
+      expect((await web.inject({ url: '/files/nope.glb' })).statusCode).toBe(404);
+    } finally {
+      await web.close();
+    }
   });
 });
