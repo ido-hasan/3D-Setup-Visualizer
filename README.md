@@ -5,7 +5,7 @@ A web app for drawing hardware bench setups in 3D: put boards on a bench, connec
 ## What it does
 
 - **Parts library.** Breadboards (full, half, mini), Arduino Uno R3, Nano and Mega 2560, Raspberry Pi 4 Model B, STM32 Blue Pill, STM32F4 Discovery, and FTDI FT232RL and CH340G USB-serial adapters ship with the app, with their pins already named.
-- **RF parts and coax cables.** SDRs and instruments, amplifier and switch modules, attenuators, filters, splitters and antennas ship with the app. A cable drawn between two RF ports is a coax cable with the right connector on each end.
+- **SDRs, RF parts and coax cables.** SDRs (RTL-SDR, HackRF One and six USRPs), instruments, amplifier and switch modules, attenuators, filters, splitters and antennas ship with the app. A cable drawn between two RF ports is a coax cable with the right connector on each end.
 - **Your own hardware.** Upload a STEP, STL, OBJ or GLB file. Check its size against an Arduino Uno and a ruler, lay it flat, then mark where its pins are: one by one, as a header strip, or from a CSV or JSON list.
 - **Setups.** Drag parts onto the bench, move and rotate them, and draw cables from pin to pin. Boards such as the Nano plug into a breadboard and connect to its rows.
 - **Wiring checks.** The app warns about power shorted to ground, 5 V tied to 3.3 V, 5 V reaching a 3.3 V-only pin, and boards with no ground or power connection, an RF port wired to an ordinary pin, and more than one cable on an RF port.
@@ -80,14 +80,20 @@ To load many pins at once, use **Import** in the pin editor. CSV columns are `na
 
 ### RF parts and coax cables
 
-The **RF** group of the library holds:
+The **SDR** and **RF** groups of the library hold:
 
-| Kind | Parts |
-| --- | --- |
-| SDRs and instruments | RTL-SDR dongle, HackRF One, NanoVNA, tinySA spectrum analyzer |
-| Amplifiers and switches | LNA module, power amplifier module, SPDT RF switch, mixer |
-| Passive parts | SMA attenuator, 50 Ω terminator, DC block, low-pass filter, bias tee, 2-way power splitter, directional coupler |
-| Antennas | Whip antenna (SMA), patch antenna (U.FL), GPS puck antenna |
+| Group | Kind | Parts |
+| --- | --- | --- |
+| SDR | USB radios | RTL-SDR dongle, HackRF One, USRP B200, USRP B205mini-i |
+| SDR | Networked radios | USRP N210, USRP X310, USRP X410, USRP X440 |
+| RF | Instruments | NanoVNA, tinySA spectrum analyzer |
+| RF | Amplifiers and switches | LNA module, power amplifier module, SPDT RF switch, mixer |
+| RF | Passive parts | SMA attenuator, 50 Ω terminator, DC block, low-pass filter, bias tee, 2-way power splitter, directional coupler |
+| RF | Antennas | Whip antenna (SMA), patch antenna (U.FL), GPS puck antenna |
+
+The USRPs carry their RF ports and their timing connectors (reference, PPS, trigger, GPS antenna), so you can draw the 10 MHz and PPS cabling between units. The front ports of the X440 are MMPX; every other bundled SDR port is SMA.
+
+The Ethernet, SFP+, QSFP28, PCIe, MIMO and GPIO connectors of the USRPs are drawn but take no cable, because the app has no network cable type yet. The USRPs have no power pins either: they run from their own supplies, and the app does not ask for a power connection.
 
 RF ports are the gold dots in wire mode. Draw a cable between two of them the same way as a jumper wire, and it becomes a coax cable:
 
@@ -99,7 +105,7 @@ Parts are joined by cables only. An attenuator or an antenna does not screw stra
 
 The app reports two RF mistakes: a cable from an RF port to an ordinary pin, and two cables on one RF port. It does not check power levels, port direction or unterminated ports.
 
-To give your own hardware RF ports, set a pin's type to **RF port (coax)** in the pin editor, then choose its connector (SMA, BNC, N or U.FL) and whether it is a plug or a jack. In a CSV pin list, use the type `RF` and the optional column `connector`.
+To give your own hardware RF ports, set a pin's type to **RF port (coax)** in the pin editor, then choose its connector (SMA, BNC, N, U.FL or MMPX) and whether it is a plug or a jack. In a CSV pin list, use the type `RF` and the optional column `connector`.
 
 ### Keyboard shortcuts
 
@@ -126,7 +132,12 @@ There is no login. Anyone who can reach the address can open and change setups. 
 
 ## About the bundled boards
 
-The bundled Arduino, Raspberry Pi, STM32, USB-adapter and RF parts are simplified models drawn by this app, not the manufacturers' 3D files. The sizes of the RF parts are approximate. Header positions follow the public board drawings. **Check pin names against the manufacturer's documentation before relying on them**: they have not been verified against it, and the header spacing of the STM32F4 Discovery is approximate.
+The bundled boards, SDRs and RF parts are simplified models drawn by this app, not the manufacturers' 3D files.
+
+- **Arduino, Raspberry Pi, STM32 and USB-adapter boards:** header positions follow the public board drawings. The header spacing of the STM32F4 Discovery is approximate.
+- **SDR and RF parts:** sizes are approximate, and so is the position of each port on the USRP panels.
+
+**Check pin and port names against the manufacturer's documentation before relying on them.** None of them has been verified against it.
 
 To use a real 3D model for a bundled board, open it in the library, choose **Duplicate to edit**, then **Replace 3D model**. The pins are kept.
 
